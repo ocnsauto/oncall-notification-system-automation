@@ -16,6 +16,14 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Prevent 'SSL SYSCALL error: EOF detected' when Supabase drops idle connections.
+    # pool_pre_ping: tests connection before use, auto-reconnects if dropped.
+    # pool_recycle: refreshes connections every 5 min (matches Supabase idle timeout).
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+
     # Base URL for Twilio webhooks. Set to your Render public URL in production.
     # On local dev this is overridden at runtime by ngrok_helper.
     BASE_URL = os.environ.get("BASE_URL", "")
