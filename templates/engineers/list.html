@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Engineers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Engineers</h1>
+  <a href="{{ url_for('engineers.add_engineer') }}" class="btn btn--primary" id="add-engineer-btn">+ Add Engineer</a>
+</div>
+
+<section class="section">
+  {% if engineers %}
+  <table class="data-table" id="engineers-table">
+    <thead>
+      <tr>
+        <th>Queue</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>On-Call</th>
+        <th>Portal URL</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for eng in engineers %}
+      <tr>
+        <td class="mono">
+          <form method="POST" action="{{ url_for('engineers.move_engineer', engineer_id=eng.id) }}" style="display:inline-flex;gap:4px;">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="btn btn--icon" title="Move up" id="up-{{ eng.id }}">▲</button>
+          </form>
+          <span class="mono">{{ eng.queue_position }}</span>
+          <form method="POST" action="{{ url_for('engineers.move_engineer', engineer_id=eng.id) }}" style="display:inline-flex;gap:4px;">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="btn btn--icon" title="Move down" id="down-{{ eng.id }}">▼</button>
+          </form>
+        </td>
+        <td><strong>{{ eng.name }}</strong></td>
+        <td class="mono">{{ eng.phone }}</td>
+        <td>{{ eng.email }}</td>
+        <td>
+          <label class="toggle-switch" title="Toggle on-call">
+            <input type="checkbox" class="oncall-toggle" data-id="{{ eng.id }}" {% if eng.is_oncall %}checked{% endif %} id="toggle-{{ eng.id }}" />
+            <span class="toggle-slider"></span>
+          </label>
+        </td>
+        <td class="mono small">
+          <a href="{{ url_for('portal.view_portal', token=eng.access_token) }}" target="_blank" class="link-mono">/portal/{{ eng.access_token[:8] }}…</a>
+        </td>
+        <td class="action-cell">
+          <a href="{{ url_for('engineers.edit_engineer', engineer_id=eng.id) }}" class="btn btn--sm" id="edit-{{ eng.id }}">Edit</a>
+          <form method="POST" action="{{ url_for('engineers.regenerate_token', engineer_id=eng.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn--sm btn--ghost" id="regen-{{ eng.id }}" onclick="return confirm('Regenerate token for {{ eng.name }}? Old link will be invalidated.')">Regen Token</button>
+          </form>
+          <form method="POST" action="{{ url_for('engineers.delete_engineer', engineer_id=eng.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn--sm btn--danger" id="delete-{{ eng.id }}" onclick="return confirm('Delete {{ eng.name }}?')">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No engineers added yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

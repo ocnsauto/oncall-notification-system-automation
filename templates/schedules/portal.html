@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oncall Portal — {{ engineer.name }}</title>
+  <meta name="description" content="Engineer schedule portal for {{ engineer.name }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+</head>
+<body class="portal-body">
+  <header class="portal-header">
+    <div class="logo-mark">◈</div>
+    <h1 class="portal-title">ONCALL PORTAL</h1>
+    <p class="portal-sub">Nebulynx — {{ engineer.name }}</p>
+  </header>
+
+  <main class="portal-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Upcoming Shifts -->
+    <section class="section">
+      <h2 class="section-title">Your Approved Shifts</h2>
+      {% if schedules %}
+      <table class="data-table" id="portal-shifts-table">
+        <thead>
+          <tr><th>Shift Start</th><th>Shift End</th><th>Duration</th></tr>
+        </thead>
+        <tbody>
+          {% for shift in schedules %}
+          <tr {% if shift.shift_start <= now <= shift.shift_end %}class="row--active"{% endif %}>
+            <td class="mono">{{ shift.shift_start.strftime('%Y-%m-%d %H:%M') }} UTC</td>
+            <td class="mono">{{ shift.shift_end.strftime('%Y-%m-%d %H:%M') }} UTC</td>
+            <td class="mono">
+              {% set dur = (shift.shift_end - shift.shift_start).total_seconds() // 3600 %}
+              {{ dur | int }}h
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state">No approved shifts scheduled for you.</p>
+      {% endif %}
+    </section>
+
+    <!-- Submit Change Request -->
+    <section class="section section--narrow">
+      <h2 class="section-title">Request Schedule Change</h2>
+      <form method="POST" action="{{ url_for('portal.submit_request', token=token) }}" class="form-card" id="change-request-form">
+        <div class="form-group">
+          <label class="form-label">Requested Start</label>
+          <input name="requested_start" type="datetime-local" class="form-input mono" id="req-start" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Requested End</label>
+          <input name="requested_end" type="datetime-local" class="form-input mono" id="req-end" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes (optional)</label>
+          <textarea name="notes" class="form-input" rows="2" id="req-notes" placeholder="Reason for change..."></textarea>
+        </div>
+        <button type="submit" class="btn btn--primary" id="submit-request-btn">Submit Request</button>
+      </form>
+    </section>
+
+    <!-- Past Requests -->
+    {% if change_requests %}
+    <section class="section">
+      <h2 class="section-title">Your Recent Requests</h2>
+      <table class="data-table" id="portal-requests-table">
+        <thead>
+          <tr><th>Submitted</th><th>Start</th><th>End</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for req in change_requests %}
+          <tr>
+            <td class="mono">{{ req.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="mono">{{ req.requested_start.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="mono">{{ req.requested_end.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><span class="badge badge--{{ req.status }}">{{ req.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+  </main>
+
+  <footer class="site-footer">
+    <span>Nebulynx Oncall System</span>
+    <span class="footer-sep">|</span>
+    <span class="dim">Bookmark this URL — it is your unique access link.</span>
+  </footer>
+</body>
+</html>

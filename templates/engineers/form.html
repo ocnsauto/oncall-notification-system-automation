@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if engineer else 'Add' }} Engineer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{{ 'Edit Engineer' if engineer else 'Add Engineer' }}</h1>
+  <a href="{{ url_for('engineers.list_engineers') }}" class="btn btn--ghost">← Back</a>
+</div>
+
+<section class="section section--narrow">
+  <form method="POST" class="form-card" id="engineer-form">
+    <div class="form-group">
+      <label for="name" class="form-label">Full Name</label>
+      <input id="name" name="name" type="text" class="form-input" value="{{ engineer.name if engineer else '' }}" required />
+    </div>
+    <div class="form-group">
+      <label for="phone" class="form-label">Phone (E.164 format, e.g. +639XXXXXXXXX)</label>
+      <input id="phone" name="phone" type="text" class="form-input mono" value="{{ engineer.phone if engineer else '' }}" placeholder="+639XXXXXXXXX" required />
+    </div>
+    <div class="form-group">
+      <label for="email" class="form-label">Email</label>
+      <input id="email" name="email" type="email" class="form-input" value="{{ engineer.email if engineer else '' }}" required />
+    </div>
+    <div class="form-group">
+      <label for="queue_position" class="form-label">Queue Position (fallback call order)</label>
+      <input id="queue_position" name="queue_position" type="number" class="form-input" min="1"
+        value="{{ engineer.queue_position if engineer else next_position }}" required />
+    </div>
+    <div class="form-group form-group--inline">
+      <label class="form-label" for="is_oncall">On-Call</label>
+      <input id="is_oncall" name="is_oncall" type="checkbox" {% if (engineer and engineer.is_oncall) or not engineer %}checked{% endif %} />
+      <span class="form-hint">Uncheck to exclude from all notification chains.</span>
+    </div>
+    <div class="form-actions">
+      <button type="submit" id="submit-engineer-btn" class="btn btn--primary">{{ 'Save Changes' if engineer else 'Add Engineer' }}</button>
+      <a href="{{ url_for('engineers.list_engineers') }}" class="btn btn--ghost">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

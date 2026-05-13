@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Dashboard</h1>
+  <span class="page-subtitle">System status &amp; incident feed</span>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-value stat-value--danger">{{ active_count }}</div>
+    <div class="stat-label">Active Incidents</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-value--ok">{{ resolved_count }}</div>
+    <div class="stat-label">Answered</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ oncall_count }}</div>
+    <div class="stat-label">Engineers On-Call</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ engineer_count }}</div>
+    <div class="stat-label">Total Engineers</div>
+  </div>
+</div>
+
+<section class="section">
+  <div class="section-header">
+    <h2 class="section-title">Recent Incidents</h2>
+    <a href="{{ url_for('logs.index') }}" class="btn btn--sm">View All Logs</a>
+  </div>
+
+  {% if incidents %}
+  <table class="data-table" id="incidents-table" style="table-layout: fixed;">
+    <thead>
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th style="width: 18%;">Triggered (GMT+8)</th>
+        <th style="width: 25%;">Subject</th>
+        <th style="width: 8%;">Attempts</th>
+        <th style="width: 12%;">Status</th>
+        <th style="width: 15%;">Engineer</th>
+        <th style="width: 17%;">Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inc in incidents %}
+      <tr class="incident-row {% if inc.status == 'active' %}row--active{% endif %}" data-incident="{{ inc.id }}">
+        <td class="mono">{{ inc.id }}</td>
+        <td class="mono">{{ inc.triggered_at|local_time }}</td>
+        <td class="truncate" title="{{ inc.email_subject }}">{{ inc.email_subject[:60] }}{% if inc.email_subject|length
+          > 60 %}…{% endif %}</td>
+        {% set calls = inc.notification_logs|selectattr('type', 'equalto', 'call')|list %}
+        <td class="mono">{{ calls|length }}</td>
+        <td>
+          {% for call in calls %}
+            {% set badge_class = 'unknown' %}
+            {% set badge_text = '—' %}
+            {% if call.status == 'completed' %}
+              {% set badge_class = 'answered' %}
+              {% set badge_text = 'Answered' %}
+            {% elif call.status == 'no-answer' %}
+              {% set badge_class = 'timed-out' %}
+              {% set badge_text = 'Timed Out' %}
+            {% elif call.status == 'busy' %}
+              {% set badge_class = 'declined' %}
+              {% set badge_text = 'Declined' %}
+            {% elif call.status == 'failed' %}
+              {% set badge_class = 'failed' %}
+              {% set badge_text = 'Failed' %}
+            {% endif %}
+            <div><span class="badge badge--{{ badge_class }}">{{ badge_text }}</span></div>
+          {% endfor %}
+          {% if not calls %}—{% endif %}
+        </td>
+        <td>
+          {% for call in calls %}
+          <div>{{ call.engineer.name if call.engineer else 'Unknown' }}</div>
+          {% endfor %}
+          {% if not calls %}—{% endif %}
+        </td>
+        <td>
+          <div class="action-cell">
+            <button class="btn btn--sm btn--ghost" onclick="toggleDetail(this, {{ inc.id }})">▼ expand</button>
+            {% if inc.status == 'active' %}
+            <form action="{{ url_for('dashboard.mark_answered', incident_id=inc.id) }}" method="POST">
+                <button type="submit" class="btn btn--sm btn--ok">Mark Answered</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      <tr class="detail-row" id="detail-{{ inc.id }}" style="display:none;">
+        <td colspan="7">
+          <div class="detail-box">
+            <div class="detail-body-snippet"><strong>Body snippet:</strong> {{ inc.body_snippet or '(empty)' }}</div>
+            {% if inc.notification_logs %}
+            <table class="inner-table">
+              <thead>
+                <tr>
+                  <th>Time (GMT+8)</th>
+                  <th>Engineer</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>SID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in inc.notification_logs|sort(attribute='timestamp') %}
+                <tr>
+                  <td class="mono">{{ log.timestamp|local_time }}</td>
+                  <td>{{ log.engineer.name if log.engineer else '—' }}</td>
+                  <td><span class="badge badge--type-{{ log.type }}">{{ log.type }}</span></td>
+                  {% set badge_class = log.status or 'unknown' %}
+                  {% set badge_text = log.status or '—' %}
+                  {% if log.status == 'no-answer' %}
+                    {% set badge_class = 'timed-out' %}
+                    {% set badge_text = 'TIMED OUT' %}
+                  {% elif log.status == 'busy' %}
+                    {% set badge_class = 'declined' %}
+                    {% set badge_text = 'DECLINED' %}
+                  {% endif %}
+                  <td><span class="badge badge--{{ badge_class }}">{{ badge_text }}</span></td>
+                  <td class="mono small">{{ log.twilio_sid or '—' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p class="dim">No notification logs yet.</p>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No incidents recorded yet. The system is monitoring the inbox.</p>
+  {% endif %}
+</section>
+{% endblock %}
