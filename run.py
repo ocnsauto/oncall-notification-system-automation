@@ -53,6 +53,7 @@ def seed_database(app):
 
 
 def setup_ngrok(app):
+    """Only runs on local dev. Skipped automatically on Render (production)."""
     from app.services.ngrok_helper import fetch_ngrok_url, set_ngrok_url, push_to_twilio
 
     logger.info("[ngrok] Looking for active tunnel...")
@@ -67,22 +68,17 @@ def setup_ngrok(app):
             logger.info(f"[ngrok] Not found yet, retrying in 2s... ({attempt+1}/6)")
             time.sleep(2)
 
-    logger.warning("[ngrok] No ngrok tunnel found. Start ngrok with: ngrok http 5000")
+    logger.warning("[ngrok] No ngrok tunnel found. Start ngrok with: ngrok http 5001")
     logger.warning("[ngrok] Twilio webhooks NOT updated. Calls will fail without ngrok.")
     return None
 
 
-if __name__ == "__main__":
+def create_and_start_app():
+    """Called by Gunicorn (Render) and by __main__ (local dev)."""
     from apscheduler.schedulers.background import BackgroundScheduler
     from app import create_app
 
     app = create_app()
-
-    if "--init-db" in sys.argv:
-        seed_database(app)
-        logger.info("[setup] Database initialized. Exiting.")
-        sys.exit(0)
-
     seed_database(app)
 
     scheduler = BackgroundScheduler(daemon=True)
@@ -96,8 +92,28 @@ if __name__ == "__main__":
     from app.services.email_monitor import start_scheduler as start_email
     start_email(app, scheduler)
 
-    # Setup ngrok + update Twilio webhooks
-    setup_ngrok(app)
+    # Skip ngrok on Render — BASE_URL env var is used instead
+    is_render = os.environ.get("RENDER", "").lower() in ("true", "1", "yes")
+    if not is_render:
+        setup_ngrok(app)
+    else:
+        logger.info("[run] Running on Render — ngrok skipped. Using BASE_URL for webhooks.")
 
-    logger.info("[run] Starting Flask on http://0.0.0.0:5000")
-    app.run(host="0.0.0.0", port=5001, debug=False, use_reloader=False)
+    return app
+
+
+# Gunicorn entry point (used by Render via Procfile: gunicorn run:application)
+application = create_and_start_app()
+
+
+if __name__ == "__main__":
+    if "--init-db" in sys.argv:
+        from app import create_app
+        app = create_app()
+        seed_database(app)
+        logger.info("[setup] Database initialized. Exiting.")
+        sys.exit(0)
+
+    port = int(os.environ.get("PORT", 5001))
+    logger.info(f"[run] Starting Flask on http://0.0.0.0:{port}")
+    application.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)

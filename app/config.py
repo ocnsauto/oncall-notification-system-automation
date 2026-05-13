@@ -6,8 +6,19 @@ load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-me")
-    SQLALCHEMY_DATABASE_URI = "sqlite:///oncall.db"
+
+    # DATABASE_URL: set to your Supabase PostgreSQL URL on Render.
+    # Falls back to local SQLite for development.
+    _db_url = os.environ.get("DATABASE_URL", "sqlite:///oncall.db")
+    # Render/Heroku give 'postgres://' but SQLAlchemy 2.x needs 'postgresql://'
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Base URL for Twilio webhooks. Set to your Render public URL in production.
+    # On local dev this is overridden at runtime by ngrok_helper.
+    BASE_URL = os.environ.get("BASE_URL", "")
 
     ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")

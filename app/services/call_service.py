@@ -16,16 +16,19 @@ def get_twilio_client():
 
 def place_call(incident, engineer):
     """Place a Twilio voice call to the engineer. Returns call_sid or None."""
+    from flask import current_app as _app
     from app.services.ngrok_helper import get_current_ngrok_url
 
-    ngrok_url = get_current_ngrok_url()
-    if not ngrok_url:
-        logger.error("[call_service] No ngrok URL available. Cannot place call.")
-        _log_failure(incident.id, engineer.id, "call", "no-ngrok")
+    # On Render, BASE_URL is set as an env var (the permanent public URL).
+    # Locally, ngrok provides the tunneled URL.
+    base_url = _app.config.get("BASE_URL") or get_current_ngrok_url()
+    if not base_url:
+        logger.error("[call_service] No public URL available (BASE_URL or ngrok). Cannot place call.")
+        _log_failure(incident.id, engineer.id, "call", "no-url")
         return None
 
-    twiml_url = f"{ngrok_url}/webhooks/twiml/{incident.id}"
-    status_url = f"{ngrok_url}/webhooks/call-status"
+    twiml_url = f"{base_url}/webhooks/twiml/{incident.id}"
+    status_url = f"{base_url}/webhooks/call-status"
 
     try:
         client = get_twilio_client()
