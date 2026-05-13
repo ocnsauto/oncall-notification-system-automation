@@ -98,11 +98,13 @@ def _place_call(incident_id, queue, index):
 
 def handle_call_status(call_sid, call_status):
     """Called by webhook route when Twilio POSTs call outcome."""
+    # Atomically claim this call_sid. If already claimed (by webhook or safety timer),
+    # return immediately — prevents double-SMS when both race each other.
     with _lock:
-        call_info = _active_calls.get(call_sid)
+        call_info = _active_calls.pop(call_sid, None)
 
     if not call_info:
-        logger.debug(f"[orchestrator] Unknown call_sid {call_sid} — ignoring.")
+        logger.debug(f"[orchestrator] Unknown or already-processed call_sid {call_sid} — ignoring.")
         return
 
     _cancel_safety_timer(call_sid)
@@ -130,7 +132,6 @@ def handle_call_status(call_sid, call_status):
                 db.session.commit()
             with _lock:
                 _active_incidents.pop(incident_id, None)
-                _active_calls.pop(call_sid, None)
             logger.info(f"[orchestrator] Incident {incident_id} resolved by {engineer_id}.")
         else:
             # No answer / busy / failed — send SMS to the same engineer, then advance queue
@@ -139,9 +140,6 @@ def handle_call_status(call_sid, call_status):
             incident = Incident.query.get(incident_id)
             if engineer and incident:
                 send_sms(incident, engineer)
-            
-            with _lock:
-                _active_calls.pop(call_sid, None)
             queue = [Engineer.query.get(eid) for eid in queue_ids]
             queue = [e for e in queue if e]
             _place_call(incident_id, queue, index + 1)
