@@ -6,6 +6,7 @@
   <title>{% block title %}Oncall System{% endblock %} — Nebulynx</title>
   <meta name="description" content="Nebulynx Oncall Notification System — Admin Panel" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  {% block head %}{% endblock %}
 </head>
 <body>
   <header class="site-header">
