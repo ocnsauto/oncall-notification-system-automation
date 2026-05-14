@@ -22,14 +22,19 @@ def seed_database(app):
     with app.app_context():
         db.create_all()
 
-        if not User.query.first():
+        user = User.query.first()
+        if not user:
             admin = User(
                 username=app.config["ADMIN_USERNAME"],
                 password_hash=generate_password_hash(app.config["ADMIN_PASSWORD"]),
             )
             db.session.add(admin)
-            db.session.commit()
             logger.info(f"[seed] Admin user created: {app.config['ADMIN_USERNAME']}")
+        else:
+            user.username = app.config["ADMIN_USERNAME"]
+            user.password_hash = generate_password_hash(app.config["ADMIN_PASSWORD"])
+            logger.info("[seed] Admin user synced from environment.")
+        db.session.commit()
 
         if Engineer.query.count() == 0:
             engineers = [
