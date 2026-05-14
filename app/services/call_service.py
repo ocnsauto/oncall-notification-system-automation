@@ -48,26 +48,41 @@ def place_call(incident, engineer):
             twilio_sid=call.sid,
             notes=f"Call placed to {engineer.phone}",
         )
-        db.session.add(log)
-        db.session.commit()
+        try:
+            db.session.add(log)
+            db.session.commit()
+        except Exception as db_e:
+            db.session.rollback()
+            logger.warning(f"[call_service] DB commit failed, retrying once: {db_e}")
+            db.session.add(log)
+            db.session.commit()
+
         logger.info(f"[call_service] Call placed → SID={call.sid} engineer={engineer.name}")
         return call.sid
     except Exception as e:
         logger.error(f"[call_service] Failed to place call to {engineer.name}: {e}")
+        db.session.rollback()
         _log_failure(incident.id, engineer.id, "call", "failed", str(e))
         return None
 
 
 def _log_failure(incident_id, engineer_id, log_type, status, notes=None):
+    log = NotificationLog(
+        incident_id=incident_id,
+        engineer_id=engineer_id,
+        type=log_type,
+        status=status,
+        notes=notes,
+    )
     try:
-        log = NotificationLog(
-            incident_id=incident_id,
-            engineer_id=engineer_id,
-            type=log_type,
-            status=status,
-            notes=notes,
-        )
         db.session.add(log)
         db.session.commit()
     except Exception as e:
-        logger.error(f"[call_service] Could not write failure log: {e}")
+        db.session.rollback()
+        logger.warning(f"[call_service] Could not write failure log, retrying: {e}")
+        try:
+            db.session.add(log)
+            db.session.commit()
+        except Exception as retry_e:
+            db.session.rollback()
+            logger.error(f"[call_service] Retry failed for failure log: {retry_e}")

@@ -83,6 +83,7 @@ def _send_via_clicksend(incident, engineer, body, username, api_key, sender_id):
             raise Exception(f"ClickSend HTTP Error {resp.status_code}: {data.get('response_string', resp.text)}")
     except Exception as e:
         logger.error(f"[sms_service] Failed to send ClickSend SMS: {e}")
+        db.session.rollback()
         _log_sms_failure(incident, engineer, str(e))
         return None
 
@@ -111,6 +112,7 @@ def _send_via_twilio(incident, engineer, body):
         return msg.sid
     except Exception as e:
         logger.error(f"[sms_service] Failed to send Twilio SMS to {engineer.name}: {e}")
+        db.session.rollback()
         _log_sms_failure(incident, engineer, str(e))
         return None
 
@@ -126,7 +128,7 @@ def _log_sms_failure(incident, engineer, error_msg):
         db.session.add(log)
         db.session.commit()
     except Exception:
-        pass
+        db.session.rollback()
 
 
 def _build_sms_body(incident):
