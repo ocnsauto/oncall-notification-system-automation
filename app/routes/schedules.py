@@ -8,10 +8,26 @@ schedules_bp = Blueprint("schedules", __name__, url_prefix="/schedules")
 
 
 def _parse_dt(value):
-    """Parse datetime-local input string."""
+    """Parse datetime-local input string from local timezone to UTC."""
+    from zoneinfo import ZoneInfo
+    import datetime as dt_module
+    
+    # We must access current_app here, but _parse_dt is called inside routes.
+    # We can do it safely because it's only called during a request context.
+    try:
+        tz_str = current_app.config.get("APP_TIMEZONE", "Asia/Manila")
+        tz = ZoneInfo(tz_str)
+    except Exception:
+        from app.config import Config
+        tz = ZoneInfo(Config.APP_TIMEZONE)
+
     for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
         try:
-            return datetime.strptime(value, fmt)
+            dt = datetime.strptime(value, fmt)
+            # Make aware in local timezone, then convert to UTC, then make naive for DB
+            dt_aware = dt.replace(tzinfo=tz)
+            dt_utc = dt_aware.astimezone(dt_module.timezone.utc).replace(tzinfo=None)
+            return dt_utc
         except ValueError:
             pass
     return None

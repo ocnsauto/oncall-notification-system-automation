@@ -7,9 +7,20 @@ portal_bp = Blueprint("portal", __name__, url_prefix="/portal")
 
 
 def _parse_dt(value):
+    from zoneinfo import ZoneInfo
+    import datetime as dt_module
+    try:
+        tz_str = current_app.config.get("APP_TIMEZONE", "Asia/Manila")
+        tz = ZoneInfo(tz_str)
+    except Exception:
+        tz = ZoneInfo("Asia/Manila")
+
     for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M"):
         try:
-            return datetime.strptime(value, fmt)
+            dt = datetime.strptime(value, fmt)
+            dt_aware = dt.replace(tzinfo=tz)
+            dt_utc = dt_aware.astimezone(dt_module.timezone.utc).replace(tzinfo=None)
+            return dt_utc
         except ValueError:
             pass
     return None
