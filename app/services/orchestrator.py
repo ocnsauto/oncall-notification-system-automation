@@ -126,35 +126,51 @@ def handle_call_status(call_sid, call_status):
     queue_ids = call_info["queue_ids"]
     index = call_info["index"]
 
-    with _app_ref.app_context():
-        # Update log entry
-        log = NotificationLog.query.filter_by(twilio_sid=call_sid).first()
-        if log:
-            log.status = call_status
-            db.session.commit()
+    for attempt in range(3):
+        try:
+            with _app_ref.app_context():
+                # Update log entry
+                log = NotificationLog.query.filter_by(twilio_sid=call_sid).first()
+                if log:
+                    log.status = call_status
+                    try:
+                        db.session.commit()
+                    except Exception as e:
+                        db.session.rollback()
+                        logger.warning(f"[orchestrator] DB commit failed while updating log status: {e}")
 
-        if call_status == "completed":
-            # Answered — send SMS, resolve incident
-            from app.services.sms_service import send_sms
-            engineer = Engineer.query.get(engineer_id)
-            incident = Incident.query.get(incident_id)
-            if engineer and incident:
-                send_sms(incident, engineer)
-                incident.status = "resolved"
-                db.session.commit()
-            with _lock:
-                _active_incidents.pop(incident_id, None)
-            logger.info(f"[orchestrator] Incident {incident_id} resolved by {engineer_id}.")
-        else:
-            # No answer / busy / failed — send SMS to the same engineer, then advance queue
-            from app.services.sms_service import send_sms
-            engineer = Engineer.query.get(engineer_id)
-            incident = Incident.query.get(incident_id)
-            if engineer and incident:
-                send_sms(incident, engineer)
-            queue = [Engineer.query.get(eid) for eid in queue_ids]
-            queue = [e for e in queue if e]
-            _place_call(incident_id, queue, index + 1)
+                if call_status == "completed":
+                    # Answered — send SMS, resolve incident
+                    from app.services.sms_service import send_sms
+                    engineer = Engineer.query.get(engineer_id)
+                    incident = Incident.query.get(incident_id)
+                    if engineer and incident:
+                        send_sms(incident, engineer)
+                        incident.status = "resolved"
+                        try:
+                            db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            logger.warning(f"[orchestrator] DB commit failed while resolving incident: {e}")
+                    with _lock:
+                        _active_incidents.pop(incident_id, None)
+                    logger.info(f"[orchestrator] Incident {incident_id} resolved by {engineer_id}.")
+                else:
+                    # No answer / busy / failed — send SMS to the same engineer, then advance queue
+                    from app.services.sms_service import send_sms
+                    engineer = Engineer.query.get(engineer_id)
+                    incident = Incident.query.get(incident_id)
+                    if engineer and incident:
+                        send_sms(incident, engineer)
+                    queue = [Engineer.query.get(eid) for eid in queue_ids]
+                    queue = [e for e in queue if e]
+                    _place_call(incident_id, queue, index + 1)
+            # If successful, break out of retry loop
+            break
+        except Exception as e:
+            logger.error(f"[orchestrator] handle_call_status attempt {attempt+1} failed: {e}", exc_info=(attempt==2))
+            import time
+            time.sleep(1)
 
 
 def _advance_by_incident(incident_id, call_sid, reason):
