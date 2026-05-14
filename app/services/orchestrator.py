@@ -31,14 +31,26 @@ def resolve_call_queue():
         .all()
     )
     on_shift, off_shift = [], []
+    on_shift_info = {}
+    
     for eng in oncall_engineers:
         active = OncallSchedule.query.filter(
             OncallSchedule.engineer_id == eng.id,
             OncallSchedule.is_approved == True,
             OncallSchedule.shift_start <= now,
             OncallSchedule.shift_end >= now,
-        ).first()
-        (on_shift if active else off_shift).append(eng)
+        ).order_by(OncallSchedule.shift_start).first()
+        
+        if active:
+            on_shift_info[eng.id] = active.shift_start
+            on_shift.append(eng)
+        else:
+            off_shift.append(eng)
+            
+    # Sort on_shift engineers by who started their shift earliest.
+    # Python's stable sort preserves previous queue_position as a tiebreaker for exact same times.
+    on_shift.sort(key=lambda e: on_shift_info[e.id])
+    
     return on_shift + off_shift
 
 

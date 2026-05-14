@@ -137,14 +137,24 @@ def sync_queues():
         OncallSchedule.shift_start <= now,
         OncallSchedule.shift_end >= now
     ).all()
-    active_engineer_ids = {shift.engineer_id for shift in active_shifts}
+    
+    active_engineers_info = {}
+    for shift in active_shifts:
+        if shift.engineer_id not in active_engineers_info:
+            active_engineers_info[shift.engineer_id] = shift.shift_start
+        else:
+            if shift.shift_start < active_engineers_info[shift.engineer_id]:
+                active_engineers_info[shift.engineer_id] = shift.shift_start
 
     # Get all engineers ordered by current queue position
     engineers = Engineer.query.order_by(Engineer.queue_position).all()
     
     # Split into active and inactive, preserving relative order
-    active_engineers = [e for e in engineers if e.id in active_engineer_ids]
-    inactive_engineers = [e for e in engineers if e.id not in active_engineer_ids]
+    active_engineers = [e for e in engineers if e.id in active_engineers_info]
+    inactive_engineers = [e for e in engineers if e.id not in active_engineers_info]
+    
+    # Sort active engineers by who started their shift earliest
+    active_engineers.sort(key=lambda e: active_engineers_info[e.id])
     
     # Re-assign queue positions 1 to N
     for i, e in enumerate(active_engineers + inactive_engineers, start=1):
