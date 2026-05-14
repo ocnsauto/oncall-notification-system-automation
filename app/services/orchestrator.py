@@ -205,7 +205,7 @@ def _schedule_safety_timer(incident_id, call_sid, queue, index):
                 handle_call_status(call_sid, status if status != "in-progress" else "no-answer")
 
     from datetime import datetime as _dt, timedelta as _td
-    run_at = _dt.utcnow() + _td(seconds=60)
+    run_at = _dt.utcnow() + _td(seconds=40)
     _scheduler_ref.add_job(
         _check, "date", run_date=run_at, id=job_id, replace_existing=True
     )
