@@ -109,3 +109,31 @@ def reject_request(req_id):
     db.session.commit()
     flash("Schedule change request rejected.", "info")
     return redirect(url_for("schedules.admin_schedules"))
+
+
+@schedules_bp.route("/sync-queues", methods=["POST"])
+@login_required
+def sync_queues():
+    now = datetime.utcnow()
+    # Find all active shifts right now
+    active_shifts = OncallSchedule.query.filter(
+        OncallSchedule.is_approved == True,
+        OncallSchedule.shift_start <= now,
+        OncallSchedule.shift_end >= now
+    ).all()
+    active_engineer_ids = {shift.engineer_id for shift in active_shifts}
+
+    # Get all engineers ordered by current queue position
+    engineers = Engineer.query.order_by(Engineer.queue_position).all()
+    
+    # Split into active and inactive, preserving relative order
+    active_engineers = [e for e in engineers if e.id in active_engineer_ids]
+    inactive_engineers = [e for e in engineers if e.id not in active_engineer_ids]
+    
+    # Re-assign queue positions 1 to N
+    for i, e in enumerate(active_engineers + inactive_engineers, start=1):
+        e.queue_position = i
+        
+    db.session.commit()
+    flash("Queues synced: Engineers on active shifts moved to the front.", "success")
+    return redirect(url_for("schedules.admin_schedules"))

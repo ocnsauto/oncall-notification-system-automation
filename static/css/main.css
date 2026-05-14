@@ -306,6 +306,7 @@ input:checked + .toggle-slider::before { transform: translateX(16px); background
 .form-input.mono  { font-family: var(--font-mono); }
 select.form-input { cursor: pointer; }
 textarea.form-input { resize: vertical; }
+::-webkit-calendar-picker-indicator { filter: invert(1); }
 .form-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
 .form-inline-grid { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
 
