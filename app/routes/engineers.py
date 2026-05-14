@@ -18,16 +18,32 @@ def list_engineers():
 @engineers_bp.route("/add", methods=["GET", "POST"])
 @login_required
 def add_engineer():
+    max_pos = db.session.query(db.func.max(Engineer.queue_position)).scalar() or 0
+    next_position = max_pos + 1
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         email = request.form.get("email", "").strip()
-        queue_position = int(request.form.get("queue_position", 1))
         is_oncall = request.form.get("is_oncall") == "on"
+        
+        try:
+            queue_position = int(request.form.get("queue_position", next_position))
+        except ValueError:
+            queue_position = next_position
+
+        # Clamp queue_position to valid bounds
+        queue_position = max(1, min(queue_position, next_position))
 
         if not name or not phone or not email:
             flash("Name, phone, and email are required.", "error")
-            return render_template("engineers/form.html", engineer=None)
+            return render_template("engineers/form.html", engineer=None, next_position=next_position)
+
+        # Shift others down to make room
+        if queue_position < next_position:
+            db.session.query(Engineer).filter(Engineer.queue_position >= queue_position).update(
+                {Engineer.queue_position: Engineer.queue_position + 1}
+            )
 
         engineer = Engineer(
             name=name,
@@ -42,8 +58,7 @@ def add_engineer():
         flash(f"Engineer '{name}' added.", "success")
         return redirect(url_for("engineers.list_engineers"))
 
-    max_pos = db.session.query(db.func.max(Engineer.queue_position)).scalar() or 0
-    return render_template("engineers/form.html", engineer=None, next_position=max_pos + 1)
+    return render_template("engineers/form.html", engineer=None, next_position=next_position)
 
 
 @engineers_bp.route("/<int:engineer_id>/edit", methods=["GET", "POST"])
@@ -54,8 +69,35 @@ def edit_engineer(engineer_id):
         engineer.name = request.form.get("name", "").strip()
         engineer.phone = request.form.get("phone", "").strip()
         engineer.email = request.form.get("email", "").strip()
-        engineer.queue_position = int(request.form.get("queue_position", 1))
         engineer.is_oncall = request.form.get("is_oncall") == "on"
+
+        try:
+            new_pos = int(request.form.get("queue_position", engineer.queue_position))
+        except ValueError:
+            new_pos = engineer.queue_position
+
+        total_engineers = db.session.query(db.func.count(Engineer.id)).scalar()
+        new_pos = max(1, min(new_pos, total_engineers))
+        old_pos = engineer.queue_position
+
+        if new_pos != old_pos:
+            if new_pos < old_pos:
+                # Shifting up (e.g. 5 to 2). Shift [2..4] down to [3..5]
+                db.session.query(Engineer).filter(
+                    Engineer.queue_position >= new_pos,
+                    Engineer.queue_position < old_pos,
+                    Engineer.id != engineer.id
+                ).update({Engineer.queue_position: Engineer.queue_position + 1})
+            else:
+                # Shifting down (e.g. 2 to 5). Shift [3..5] up to [2..4]
+                db.session.query(Engineer).filter(
+                    Engineer.queue_position > old_pos,
+                    Engineer.queue_position <= new_pos,
+                    Engineer.id != engineer.id
+                ).update({Engineer.queue_position: Engineer.queue_position - 1})
+            
+            engineer.queue_position = new_pos
+
         db.session.commit()
         flash(f"Engineer '{engineer.name}' updated.", "success")
         return redirect(url_for("engineers.list_engineers"))
@@ -67,7 +109,15 @@ def edit_engineer(engineer_id):
 def delete_engineer(engineer_id):
     engineer = Engineer.query.get_or_404(engineer_id)
     name = engineer.name
+    deleted_pos = engineer.queue_position
+
     db.session.delete(engineer)
+    
+    # Close the gap by shifting everyone after them up by 1
+    db.session.query(Engineer).filter(Engineer.queue_position > deleted_pos).update(
+        {Engineer.queue_position: Engineer.queue_position - 1}
+    )
+    
     db.session.commit()
     flash(f"Engineer '{name}' deleted.", "info")
     return redirect(url_for("engineers.list_engineers"))
