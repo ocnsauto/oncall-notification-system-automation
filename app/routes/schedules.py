@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, jsonify
 from flask_login import login_required
 from app import db
 from app.models import Engineer, OncallSchedule, ScheduleChangeRequest
@@ -177,3 +177,44 @@ def sync_queues():
         "success"
     )
     return redirect(url_for("schedules.admin_schedules"))
+
+
+@schedules_bp.route("/api/sync", methods=["POST"])
+@login_required
+def api_sync():
+    """JSON endpoint — same logic as sync_queues but returns JSON for the auto-sync JS poller."""
+    now = datetime.utcnow()
+    active_shifts = OncallSchedule.query.filter(
+        OncallSchedule.is_approved == True,
+        OncallSchedule.shift_start <= now,
+        OncallSchedule.shift_end >= now,
+    ).all()
+
+    active_engineers_info = {}
+    for shift in active_shifts:
+        if shift.engineer_id not in active_engineers_info:
+            active_engineers_info[shift.engineer_id] = shift.shift_start
+        else:
+            if shift.shift_start < active_engineers_info[shift.engineer_id]:
+                active_engineers_info[shift.engineer_id] = shift.shift_start
+
+    engineers = Engineer.query.order_by(Engineer.queue_position).all()
+
+    on_count = off_count = 0
+    for e in engineers:
+        desired = e.id in active_engineers_info
+        e.is_oncall = desired
+        if desired:
+            on_count += 1
+        else:
+            off_count += 1
+
+    active_engineers = [e for e in engineers if e.id in active_engineers_info]
+    inactive_engineers = [e for e in engineers if e.id not in active_engineers_info]
+    active_engineers.sort(key=lambda e: active_engineers_info[e.id])
+
+    for i, e in enumerate(active_engineers + inactive_engineers, start=1):
+        e.queue_position = i
+
+    db.session.commit()
+    return jsonify({"ok": True, "on": on_count, "off": off_count})

@@ -28,6 +28,8 @@ def _parse_dt(value):
 
 @portal_bp.route("/<token>")
 def view_portal(token):
+    from zoneinfo import ZoneInfo
+    import datetime as dt_module
     engineer = Engineer.query.filter_by(access_token=token).first_or_404()
     schedules = (
         OncallSchedule.query.filter_by(engineer_id=engineer.id, is_approved=True)
@@ -40,13 +42,27 @@ def view_portal(token):
         .limit(10)
         .all()
     )
+    tz_str = current_app.config.get("APP_TIMEZONE", "Asia/Manila")
+    tz = ZoneInfo(tz_str)
+
+    def local_dt(dt_utc):
+        """Convert a naive UTC datetime to a formatted local time string."""
+        if not dt_utc:
+            return ""
+        aware = dt_utc.replace(tzinfo=dt_module.timezone.utc)
+        local = aware.astimezone(tz)
+        return local.strftime("%Y-%m-%d %H:%M")
+
+    now_utc = datetime.utcnow()
     return render_template(
         "schedules/portal.html",
         engineer=engineer,
         schedules=schedules,
         change_requests=change_requests,
         token=token,
-        now=datetime.utcnow(),
+        now=now_utc,
+        local_dt=local_dt,
+        tz_label=tz_str.split("/")[-1].replace("_", " ") + " (GMT+8)",
     )
 
 

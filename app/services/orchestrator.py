@@ -12,6 +12,7 @@ _lock = threading.Lock()
 _active_incidents = {}   # incident_id -> {queue:[eng_id,...], index:int, call_sid:str}
 _active_calls = {}       # call_sid -> {incident_id, engineer_id, index}
 _safety_jobs = {}        # call_sid -> scheduler_job_id
+_processed_calls = set() # call_sids already fully handled — prevents double-SMS on race
 _app_ref = None
 _scheduler_ref = None
 
@@ -113,7 +114,12 @@ def handle_call_status(call_sid, call_status):
     # Atomically claim this call_sid. If already claimed (by webhook or safety timer),
     # return immediately — prevents double-SMS when both race each other.
     with _lock:
+        if call_sid in _processed_calls:
+            logger.debug(f"[orchestrator] call_sid {call_sid} already processed — ignoring duplicate.")
+            return
         call_info = _active_calls.pop(call_sid, None)
+        if call_info:
+            _processed_calls.add(call_sid)
 
     if not call_info:
         logger.debug(f"[orchestrator] Unknown or already-processed call_sid {call_sid} — ignoring.")

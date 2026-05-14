@@ -29,13 +29,13 @@
       {% if schedules %}
       <table class="data-table" id="portal-shifts-table">
         <thead>
-          <tr><th>Shift Start</th><th>Shift End</th><th>Duration</th></tr>
+          <tr><th>Shift Start (GMT+8)</th><th>Shift End (GMT+8)</th><th>Duration</th></tr>
         </thead>
         <tbody>
           {% for shift in schedules %}
           <tr {% if shift.shift_start <= now <= shift.shift_end %}class="row--active"{% endif %}>
-            <td class="mono">{{ shift.shift_start.strftime('%Y-%m-%d %H:%M') }} UTC</td>
-            <td class="mono">{{ shift.shift_end.strftime('%Y-%m-%d %H:%M') }} UTC</td>
+            <td class="mono">{{ local_dt(shift.shift_start) }} (GMT+8)</td>
+            <td class="mono">{{ local_dt(shift.shift_end) }} (GMT+8)</td>
             <td class="mono">
               {% set dur = (shift.shift_end - shift.shift_start).total_seconds() // 3600 %}
               {{ dur | int }}h
@@ -80,9 +80,9 @@
         <tbody>
           {% for req in change_requests %}
           <tr>
-            <td class="mono">{{ req.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td class="mono">{{ req.requested_start.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td class="mono">{{ req.requested_end.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="mono">{{ local_dt(req.submitted_at) }}</td>
+            <td class="mono">{{ local_dt(req.requested_start) }}</td>
+            <td class="mono">{{ local_dt(req.requested_end) }}</td>
             <td><span class="badge badge--{{ req.status }}">{{ req.status }}</span></td>
           </tr>
           {% endfor %}
