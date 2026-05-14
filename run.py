@@ -100,16 +100,22 @@ def create_and_start_app():
     # Auto-sync on-call status from shifts every minute
     def auto_sync_oncall_status():
         """Background job: auto-enable/disable is_oncall based on active approved shifts."""
-        from datetime import datetime as _dt
+        from datetime import datetime as _dt, timezone as _tz
+        from zoneinfo import ZoneInfo
         from app.models import Engineer, OncallSchedule
         from app import db
         with app.app_context():
             try:
-                now = _dt.utcnow()
+                # Derive UTC now via the configured app timezone — consistent with _parse_dt
+                tz_str = app.config.get("APP_TIMEZONE", "Asia/Manila")
+                local_tz = ZoneInfo(tz_str)
+                now_local = _dt.now(local_tz)
+                now_utc = now_local.astimezone(_tz.utc).replace(tzinfo=None)
+
                 active_shifts = OncallSchedule.query.filter(
                     OncallSchedule.is_approved == True,
-                    OncallSchedule.shift_start <= now,
-                    OncallSchedule.shift_end >= now,
+                    OncallSchedule.shift_start <= now_utc,
+                    OncallSchedule.shift_end >= now_utc,
                 ).all()
                 active_ids = {s.engineer_id for s in active_shifts}
                 engineers = Engineer.query.all()
@@ -121,7 +127,7 @@ def create_and_start_app():
                         changed += 1
                 if changed:
                     db.session.commit()
-                    logger.info(f"[shift-sync] Auto-toggled is_oncall for {changed} engineer(s).")
+                    logger.info(f"[shift-sync] Auto-toggled is_oncall for {changed} engineer(s) at {now_local.strftime('%Y-%m-%d %H:%M')} {tz_str}.")
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"[shift-sync] Error during auto oncall sync: {e}")
