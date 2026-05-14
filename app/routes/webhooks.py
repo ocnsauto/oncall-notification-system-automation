@@ -1,8 +1,9 @@
+import threading
+import logging
 from flask import Blueprint, request, Response, current_app
 from twilio.twiml.voice_response import VoiceResponse
 from app.models import Incident
 from app.services.orchestrator import handle_call_status
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,14 @@ def call_status():
     logger.info(f"[webhooks] call-status SID={call_sid} status={call_status_value}")
 
     if call_sid and call_status_value in ("completed", "no-answer", "busy", "failed"):
-        handle_call_status(call_sid, call_status_value)
+        # Run in background thread so it gets a clean app context.
+        # Running handle_call_status directly inside a Flask request context
+        # causes the nested app_context inside it to fail silently on DB/SMS ops.
+        t = threading.Thread(
+            target=handle_call_status,
+            args=(call_sid, call_status_value),
+            daemon=True,
+        )
+        t.start()
 
     return "", 204
