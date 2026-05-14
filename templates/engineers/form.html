@@ -26,11 +26,17 @@
       <input id="queue_position" name="queue_position" type="number" class="form-input" min="1"
         value="{{ engineer.queue_position if engineer else next_position }}" required />
     </div>
+    {% if engineer %}
     <div class="form-group form-group--inline">
       <label class="form-label" for="is_oncall">On-Call</label>
-      <input id="is_oncall" name="is_oncall" type="checkbox" {% if (engineer and engineer.is_oncall) or not engineer %}checked{% endif %} />
-      <span class="form-hint">Uncheck to exclude from all notification chains.</span>
+      <input id="is_oncall" name="is_oncall" type="checkbox" {% if engineer.is_oncall %}checked{% endif %} />
+      <span class="form-hint">Toggle on-call status manually. This is also auto-managed by the Sync Queues button.</span>
     </div>
+    {% else %}
+    <p class="form-hint" style="margin-top: -0.5rem; margin-bottom: 1rem;">
+      ℹ️ New engineers start as <strong>Off-Call</strong> by default. Their on-call status will be enabled automatically when a shift becomes active, or manually via the Engineers list.
+    </p>
+    {% endif %}
     <div class="form-actions">
       <button type="submit" id="submit-engineer-btn" class="btn btn--primary">{{ 'Save Changes' if engineer else 'Add Engineer' }}</button>
       <a href="{{ url_for('engineers.list_engineers') }}" class="btn btn--ghost">Cancel</a>

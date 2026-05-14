@@ -149,6 +149,17 @@ def sync_queues():
     # Get all engineers ordered by current queue position
     engineers = Engineer.query.order_by(Engineer.queue_position).all()
     
+    # Toggle is_oncall: ON for engineers on active shifts, OFF for everyone else
+    on_count = 0
+    off_count = 0
+    for e in engineers:
+        if e.id in active_engineers_info:
+            e.is_oncall = True
+            on_count += 1
+        else:
+            e.is_oncall = False
+            off_count += 1
+
     # Split into active and inactive, preserving relative order
     active_engineers = [e for e in engineers if e.id in active_engineers_info]
     inactive_engineers = [e for e in engineers if e.id not in active_engineers_info]
@@ -161,5 +172,8 @@ def sync_queues():
         e.queue_position = i
         
     db.session.commit()
-    flash("Queues synced: Engineers on active shifts moved to the front.", "success")
+    flash(
+        f"Sync complete: {on_count} engineer(s) enabled (on shift), {off_count} disabled (no active shift). Queues reordered.",
+        "success"
+    )
     return redirect(url_for("schedules.admin_schedules"))

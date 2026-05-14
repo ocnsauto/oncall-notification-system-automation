@@ -25,7 +25,8 @@ def add_engineer():
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         email = request.form.get("email", "").strip()
-        is_oncall = request.form.get("is_oncall") == "on"
+        # New engineers default to off-call; status is enabled via shifts or manual toggle.
+        is_oncall = False
         
         try:
             queue_position = int(request.form.get("queue_position", next_position))

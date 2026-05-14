@@ -97,6 +97,44 @@ def create_and_start_app():
     from app.services.email_monitor import start_scheduler as start_email
     start_email(app, scheduler)
 
+    # Auto-sync on-call status from shifts every minute
+    def auto_sync_oncall_status():
+        """Background job: auto-enable/disable is_oncall based on active approved shifts."""
+        from datetime import datetime as _dt
+        from app.models import Engineer, OncallSchedule
+        from app import db
+        with app.app_context():
+            try:
+                now = _dt.utcnow()
+                active_shifts = OncallSchedule.query.filter(
+                    OncallSchedule.is_approved == True,
+                    OncallSchedule.shift_start <= now,
+                    OncallSchedule.shift_end >= now,
+                ).all()
+                active_ids = {s.engineer_id for s in active_shifts}
+                engineers = Engineer.query.all()
+                changed = 0
+                for eng in engineers:
+                    desired = eng.id in active_ids
+                    if eng.is_oncall != desired:
+                        eng.is_oncall = desired
+                        changed += 1
+                if changed:
+                    db.session.commit()
+                    logger.info(f"[shift-sync] Auto-toggled is_oncall for {changed} engineer(s).")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"[shift-sync] Error during auto oncall sync: {e}")
+
+    scheduler.add_job(
+        auto_sync_oncall_status,
+        "interval",
+        minutes=1,
+        id="auto_sync_oncall",
+        replace_existing=True,
+    )
+    logger.info("[run] Auto oncall-shift sync job registered (every 1 min).")
+
     # Skip ngrok on Render — BASE_URL env var is used instead
     is_render = os.environ.get("RENDER", "").lower() in ("true", "1", "yes")
     if not is_render:
