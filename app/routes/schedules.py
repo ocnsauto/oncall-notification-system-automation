@@ -224,6 +224,9 @@ def sync_queues():
 @login_required
 def api_sync():
     """JSON endpoint — same logic as sync_queues but returns JSON for the auto-sync JS poller."""
+    if not is_auto_sync_enabled():
+        return jsonify({"ok": False, "message": "Auto-sync is disabled."})
+
     now = datetime.utcnow()
     active_shifts = OncallSchedule.query.filter(
         OncallSchedule.is_approved == True,
