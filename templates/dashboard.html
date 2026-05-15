@@ -30,8 +30,10 @@
 
 <section class="section">
   <div class="section-header">
-    <h2 class="section-title">Recent Incidents</h2>
-    <a href="{{ url_for('logs.index') }}" class="btn btn--sm">View All Logs</a>
+    <div>
+      <h2 class="section-title">Recent Incidents <span style="font-size:0.75rem;font-weight:400;opacity:0.5;">(latest 10)</span></h2>
+    </div>
+    <a href="{{ url_for('logs.index') }}" class="btn btn--sm">View All Logs →</a>
   </div>
 
   {% if incidents %}

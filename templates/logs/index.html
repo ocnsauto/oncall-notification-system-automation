@@ -152,12 +152,12 @@
   <!-- Pagination -->
   <div class="pagination" id="pagination">
     {% if incidents.has_prev %}
-    <a href="{{ url_for('logs.index', page=incidents.prev_num, status=status_filter, date_from=date_from, date_to=date_to) }}"
+    <a href="{{ url_for('logs.index', page=incidents.prev_num, status=status_filter, engineer_id=engineer_filter, date_from=date_from, date_to=date_to) }}"
       class="btn btn--sm">← Prev</a>
     {% endif %}
-    <span class="mono">Page {{ incidents.page }} of {{ incidents.pages }}</span>
+    <span class="mono">Page {{ incidents.page }} of {{ incidents.pages }} &nbsp;·&nbsp; {{ incidents.total }} total</span>
     {% if incidents.has_next %}
-    <a href="{{ url_for('logs.index', page=incidents.next_num, status=status_filter, date_from=date_from, date_to=date_to) }}"
+    <a href="{{ url_for('logs.index', page=incidents.next_num, status=status_filter, engineer_id=engineer_filter, date_from=date_from, date_to=date_to) }}"
       class="btn btn--sm">Next →</a>
     {% endif %}
   </div>

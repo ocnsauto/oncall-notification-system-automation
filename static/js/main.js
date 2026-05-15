@@ -79,12 +79,24 @@ document.addEventListener("DOMContentLoaded", () => {
           if (btn) btn.innerHTML = "▲ collapse";
         }
       });
+
+      // Also refresh stat cards (active count etc.)
+      const newStatValues = doc.querySelectorAll(".stat-value");
+      const statValues = document.querySelectorAll(".stat-value");
+      newStatValues.forEach((el, i) => {
+        if (statValues[i]) statValues[i].textContent = el.textContent;
+      });
     } catch (e) {
       // silently ignore network errors during background poll
     }
   }
 
-  setInterval(fetchAndPatch, 15000);
+  // Stagger: Engineers sync fires at 0s, dashboard fetches at 5s offset.
+  // Both run every 30s. This guarantees dashboard always reads post-sync data.
+  setTimeout(() => {
+    fetchAndPatch();
+    setInterval(fetchAndPatch, 30000);
+  }, 5000);
 })();
 
 // ── Engineers page: auto-sync poller ──────────────────────

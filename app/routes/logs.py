@@ -43,6 +43,7 @@ def index():
         incidents=incidents,
         engineers=engineers,
         status_filter=status_filter,
+        engineer_filter=engineer_filter,
         date_from=date_from,
         date_to=date_to,
     )
@@ -118,11 +119,11 @@ def _build_summary_sheet(ws, incidents, label):
             elif call.status == "failed":
                 status_val = "Failed"
             else:
-                status_val = "—"
+                status_val = call.status or "—"
             status_list.append(status_val)
             eng_name = call.engineer.name if call.engineer else "Unknown"
             engineer_list.append(eng_name)
-            
+
         status_str = "\n".join(status_list) if status_list else "—"
         engineer_str = "\n".join(engineer_list) if engineer_list else "—"
 
@@ -132,19 +133,23 @@ def _build_summary_sheet(ws, incidents, label):
             dt_utc = inc.triggered_at
         local_time = dt_utc.astimezone(ZoneInfo(timezone_str)).strftime("%Y-%m-%d %H:%M:%S")
 
+        subject = (inc.email_subject or "")[:80]
+        snippet = (inc.body_snippet or "")[:120]
+
         ws.append([
-            inc.id,
+            i,
             local_time,
-            inc.email_subject[:80],
-            inc.body_snippet,
+            subject,
+            snippet,
             len(calls),
             status_str,
             engineer_str,
         ])
-        
+
         row_idx = ws.max_row
         ws.cell(row=row_idx, column=6).alignment = Alignment(wrapText=True)
         ws.cell(row=row_idx, column=7).alignment = Alignment(wrapText=True)
+
 
 
 def _build_detail_sheet(ws, incidents):

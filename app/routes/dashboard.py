@@ -9,7 +9,7 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @login_required
 def index():
     incidents = (
-        Incident.query.order_by(Incident.triggered_at.desc()).limit(50).all()
+        Incident.query.order_by(Incident.triggered_at.desc()).limit(10).all()
     )
     active_count = Incident.query.filter_by(status="active").count()
     resolved_count = Incident.query.filter_by(status="resolved").count()
