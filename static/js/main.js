@@ -149,14 +149,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("auto-sync-toggle-btn");
   if (!btn) return;
 
-  // Fetch initial state from server
-  fetch("/schedules/api/autosync/status")
-    .then(r => r.json())
-    .then(data => {
-      updateBtnUI(data.auto_sync);
-    })
-    .catch(console.error);
-
   function updateBtnUI(enabled) {
     btn.textContent = enabled ? "⏸ Auto-Sync: ON" : "▶ Auto-Sync: OFF";
     btn.classList.toggle("btn--ok", enabled);

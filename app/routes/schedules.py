@@ -79,6 +79,7 @@ def admin_schedules():
         engineers=engineers,
         schedules=schedules,
         pending=pending,
+        auto_sync_enabled=is_auto_sync_enabled(),
     )
 
 
