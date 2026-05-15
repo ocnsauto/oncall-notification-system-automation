@@ -5,6 +5,12 @@ from app.models import Incident, NotificationLog, Engineer
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
+@dashboard_bp.route("/health")
+def health_check():
+    """Unauthenticated endpoint for cron-job.org keep-alive pings."""
+    return "OK", 200
+
+
 @dashboard_bp.route("/")
 @login_required
 def index():
