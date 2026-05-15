@@ -91,12 +91,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Stagger: Engineers sync fires at 0s, dashboard fetches at 5s offset.
-  // Both run every 30s. This guarantees dashboard always reads post-sync data.
+  // Engineers sync fires at t=0s, dashboard fetch fires at t=3s.
+  // Both cycle every 15s — dashboard always reads the post-sync DB state.
   setTimeout(() => {
     fetchAndPatch();
-    setInterval(fetchAndPatch, 30000);
-  }, 5000);
+    setInterval(fetchAndPatch, 15000);
+  }, 3000);
 })();
 
 // ── Engineers page: auto-sync poller ──────────────────────
@@ -144,7 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  setInterval(doSync, 30000);
+  setInterval(doSync, 15000);
 })();
 
 // ── Schedules: auto-sync toggle button ────────────────────
