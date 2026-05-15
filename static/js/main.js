@@ -101,21 +101,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ── Engineers page: auto-sync poller ──────────────────────
 (function engineersAutoSync() {
-  // Only run on the engineers list page
   if (!document.getElementById("engineers-table")) return;
 
-  const AUTO_SYNC_KEY = "oncall_auto_sync_enabled";
-
-  function isSyncEnabled() {
-    return localStorage.getItem(AUTO_SYNC_KEY) !== "false";
-  }
-
   async function doSync() {
-    if (!isSyncEnabled()) return;
     try {
+      // Check server status first
+      const statusResp = await fetch("/schedules/api/autosync/status");
+      if (!statusResp.ok) return;
+      const statusData = await statusResp.json();
+      if (!statusData.auto_sync) return;
+
       const resp = await fetch("/schedules/api/sync", { method: "POST" });
       if (!resp.ok) return;
-      // After syncing, reload just the table by fetching the page HTML
+      
       const pageResp = await fetch(window.location.href);
       if (!pageResp.ok) return;
       const html = await pageResp.text();
@@ -125,7 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const tbody = document.querySelector("#engineers-table tbody");
       if (newTbody && tbody) {
         tbody.innerHTML = newTbody.innerHTML;
-        // Re-attach oncall-toggle listeners
         tbody.querySelectorAll(".oncall-toggle").forEach((checkbox) => {
           checkbox.addEventListener("change", async function () {
             const engineerId = this.dataset.id;
@@ -152,28 +149,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("auto-sync-toggle-btn");
   if (!btn) return;
 
-  const AUTO_SYNC_KEY = "oncall_auto_sync_enabled";
+  // Fetch initial state from server
+  fetch("/schedules/api/autosync/status")
+    .then(r => r.json())
+    .then(data => {
+      updateBtnUI(data.auto_sync);
+    })
+    .catch(console.error);
 
-  async function updateBtnLabel() {
-    const enabled = localStorage.getItem(AUTO_SYNC_KEY) !== "false";
+  function updateBtnUI(enabled) {
     btn.textContent = enabled ? "⏸ Auto-Sync: ON" : "▶ Auto-Sync: OFF";
     btn.classList.toggle("btn--ok", enabled);
     btn.classList.toggle("btn--ghost", !enabled);
-    
-    // Sync state with server
-    try {
-      const endpoint = enabled ? "/schedules/api/autosync/enable" : "/schedules/api/autosync/disable";
-      await fetch(endpoint, { method: "POST" });
-    } catch (e) {
-      console.error("Failed to update server auto-sync state", e);
-    }
+    btn.dataset.enabled = enabled ? "true" : "false";
   }
 
-  updateBtnLabel();
-
-  btn.addEventListener("click", () => {
-    const current = localStorage.getItem(AUTO_SYNC_KEY) !== "false";
-    localStorage.setItem(AUTO_SYNC_KEY, current ? "false" : "true");
-    updateBtnLabel();
+  btn.addEventListener("click", async () => {
+    // Optimistic UI update
+    const current = btn.dataset.enabled === "true";
+    const newState = !current;
+    updateBtnUI(newState);
+    
+    try {
+      const endpoint = newState ? "/schedules/api/autosync/enable" : "/schedules/api/autosync/disable";
+      await fetch(endpoint, { method: "POST" });
+    } catch (e) {
+      console.error("Failed to update auto-sync state", e);
+      // Revert UI on failure
+      updateBtnUI(current);
+    }
   });
 })();
