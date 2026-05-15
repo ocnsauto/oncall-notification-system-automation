@@ -141,6 +141,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Execute immediately on load, then every 15 seconds
+  doSync();
   setInterval(doSync, 15000);
 })();
 
