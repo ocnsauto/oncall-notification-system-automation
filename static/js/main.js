@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function doSync() {
     try {
       // Check server status first
-      const statusResp = await fetch("/schedules/api/autosync/status");
+      const statusResp = await fetch("/schedules/api/autosync/status", { cache: "no-store" });
       if (!statusResp.ok) return;
       const statusData = await statusResp.json();
       if (!statusData.auto_sync) return;
