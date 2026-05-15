@@ -6,6 +6,37 @@ from app.models import Engineer, OncallSchedule, ScheduleChangeRequest
 
 schedules_bp = Blueprint("schedules", __name__, url_prefix="/schedules")
 
+# Server-side flag: controls whether the background auto-sync job is active.
+# Default ON. Toggle via POST /schedules/api/autosync/enable|disable
+_auto_sync_enabled = True
+
+
+def is_auto_sync_enabled():
+    return _auto_sync_enabled
+
+
+@schedules_bp.route("/api/autosync/enable", methods=["POST"])
+@login_required
+def autosync_enable():
+    global _auto_sync_enabled
+    _auto_sync_enabled = True
+    return jsonify({"auto_sync": True})
+
+
+@schedules_bp.route("/api/autosync/disable", methods=["POST"])
+@login_required
+def autosync_disable():
+    global _auto_sync_enabled
+    _auto_sync_enabled = False
+    return jsonify({"auto_sync": False})
+
+
+@schedules_bp.route("/api/autosync/status", methods=["GET"])
+@login_required
+def autosync_status():
+    return jsonify({"auto_sync": _auto_sync_enabled})
+
+
 
 def _parse_dt(value):
     """Parse datetime-local input string from local timezone to UTC."""

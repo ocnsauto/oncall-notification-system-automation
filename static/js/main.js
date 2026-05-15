@@ -154,11 +154,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const AUTO_SYNC_KEY = "oncall_auto_sync_enabled";
 
-  function updateBtnLabel() {
+  async function updateBtnLabel() {
     const enabled = localStorage.getItem(AUTO_SYNC_KEY) !== "false";
     btn.textContent = enabled ? "⏸ Auto-Sync: ON" : "▶ Auto-Sync: OFF";
     btn.classList.toggle("btn--ok", enabled);
     btn.classList.toggle("btn--ghost", !enabled);
+    
+    // Sync state with server
+    try {
+      const endpoint = enabled ? "/schedules/api/autosync/enable" : "/schedules/api/autosync/disable";
+      await fetch(endpoint, { method: "POST" });
+    } catch (e) {
+      console.error("Failed to update server auto-sync state", e);
+    }
   }
 
   updateBtnLabel();

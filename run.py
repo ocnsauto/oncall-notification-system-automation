@@ -104,6 +104,10 @@ def create_and_start_app():
         from zoneinfo import ZoneInfo
         from app.models import Engineer, OncallSchedule
         from app import db
+        from app.routes.schedules import is_auto_sync_enabled
+        if not is_auto_sync_enabled():
+            return
+            
         with app.app_context():
             try:
                 # Derive UTC now via the configured app timezone — consistent with _parse_dt

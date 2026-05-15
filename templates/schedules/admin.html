@@ -5,7 +5,7 @@
 <div class="page-header">
   <h1 class="page-title">Schedule Management</h1>
   <div class="header-actions">
-    <button id="auto-sync-toggle-btn" class="btn btn--ok" title="Auto-sync engineers queue and oncall status every 30s">⏸ Auto-Sync: ON</button>
+    <button id="auto-sync-toggle-btn" class="btn btn--ok" title="Auto-sync engineers queue and oncall status every 15s">⏸ Auto-Sync: ON</button>
     <form method="POST" action="{{ url_for('schedules.sync_queues') }}" style="display:inline;">
       <button type="submit" class="btn btn--ghost" id="sync-queues-btn">Sync Queues with Shifts</button>
     </form>
