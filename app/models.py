@@ -87,3 +87,9 @@ class NotificationLog(db.Model):
     twilio_sid = db.Column(db.String(64), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text, nullable=True)
+
+
+class SystemSetting(db.Model):
+    __tablename__ = "system_settings"
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.String(255), nullable=False)

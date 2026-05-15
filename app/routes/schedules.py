@@ -2,39 +2,48 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app, jsonify
 from flask_login import login_required
 from app import db
-from app.models import Engineer, OncallSchedule, ScheduleChangeRequest
+from app.models import Engineer, OncallSchedule, ScheduleChangeRequest, SystemSetting
 
 schedules_bp = Blueprint("schedules", __name__, url_prefix="/schedules")
 
-# Server-side flag: controls whether the background auto-sync job is active.
-# Default ON. Toggle via POST /schedules/api/autosync/enable|disable
-_auto_sync_enabled = True
-
 
 def is_auto_sync_enabled():
-    return _auto_sync_enabled
+    setting = SystemSetting.query.get("auto_sync_enabled")
+    if setting is None:
+        return True
+    return setting.value == "true"
 
 
 @schedules_bp.route("/api/autosync/enable", methods=["POST"])
 @login_required
 def autosync_enable():
-    global _auto_sync_enabled
-    _auto_sync_enabled = True
+    setting = SystemSetting.query.get("auto_sync_enabled")
+    if not setting:
+        setting = SystemSetting(key="auto_sync_enabled", value="true")
+        db.session.add(setting)
+    else:
+        setting.value = "true"
+    db.session.commit()
     return jsonify({"auto_sync": True})
 
 
 @schedules_bp.route("/api/autosync/disable", methods=["POST"])
 @login_required
 def autosync_disable():
-    global _auto_sync_enabled
-    _auto_sync_enabled = False
+    setting = SystemSetting.query.get("auto_sync_enabled")
+    if not setting:
+        setting = SystemSetting(key="auto_sync_enabled", value="false")
+        db.session.add(setting)
+    else:
+        setting.value = "false"
+    db.session.commit()
     return jsonify({"auto_sync": False})
 
 
 @schedules_bp.route("/api/autosync/status", methods=["GET"])
 @login_required
 def autosync_status():
-    return jsonify({"auto_sync": _auto_sync_enabled})
+    return jsonify({"auto_sync": is_auto_sync_enabled()})
 
 
 
